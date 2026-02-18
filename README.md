@@ -134,3 +134,7 @@ If there is an improvement that you think should be made, open a pull request wi
 
 ## Reporting issues/bugs
 Open an issue if you encounter any problems with the resource, if applicable, try to include detailed information on the issue and how to reproduce it. This will make it much easier to find and fix. 
+
+
+## DEBUG
+Use /radar_debug in-game T chat to show what is being scanned!
