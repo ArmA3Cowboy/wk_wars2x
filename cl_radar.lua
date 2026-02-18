@@ -1402,9 +1402,8 @@ function RADAR:GetVehiclesForAntenna()
 	-- Create the vehs table to store the split up captured vehicle data
 	local vehs = { ["front"] = {}, ["rear"] = {} }
 
-	-- Create the results table to store the vehicle results, the first index is for the 'strongest' vehicle and the
-	-- second index is for the 'fastest' vehicle
-	local results = { ["front"] = { nil, nil }, ["rear"] = { nil, nil } }
+	-- Create the results table to store the vehicle results, now only one slot per antenna for the fastest vehicle
+	local results = { ["front"] = { nil }, ["rear"] = { nil } }
 
 	-- Loop through and split up the vehicles based on front and rear, this is simply because the actual system
 	-- that gets all of the vehicles hit by the radar only has a relative position of either 1 or -1, which we
@@ -1439,58 +1438,38 @@ function RADAR:GetVehiclesForAntenna()
 				end
 			end
 
-			-- As the radar is based on how the real Stalker DSR 2X works, we now sort the dataset by
-			-- the 'strongest' (largest) target, this way the first result for the front and rear data
-			-- will be the one that gets displayed in the target boxes.
-			table.sort( vehs[ant], self:GetStrongestSortFunc() )
+			-- Sort the dataset by the 'fastest' (highest speed) target first
+			table.sort( vehs[ant], self:GetFastestSortFunc() )
 		end
 	end
 
-	-- Now that we have all of the vehicles split into front and rear, we can iterate through both sets and get
-	-- the strongest and fastest vehicle for display
+	-- Now that we have all of the vehicles split into front and rear, we get the fastest vehicle for each direction
 	for ant in UTIL:Values( { "front", "rear" } ) do
 		-- Check that the table for the current antenna is not empty
 		if ( not UTIL:IsTableEmpty( vehs[ant] ) ) then
-			-- Get the 'strongest' vehicle for the antenna
+			-- Get the 'fastest' vehicle for the antenna
 			for k, v in pairs( vehs[ant] ) do
 				-- Check if the current vehicle item fits the mode set by the user
 				if ( self:CheckVehicleDataFitsMode( ant, v.rayType ) ) then
-					-- Set the result for the current antenna
+					-- Set the result for the current antenna (only one vehicle now)
 					results[ant][1] = v
 					break
-				end
-			end
-
-			-- Here we get the vehicle for the fastest section, but only if the user has the fast mode enabled
-			-- in the operator menu
-			if ( self:IsFastDisplayEnabled() ) then
-				-- Get the 'fastest' vehicle for the antenna
-				table.sort( vehs[ant], self:GetFastestSortFunc() )
-
-				-- Create a temporary variable for the first result, reduces line length
-				local temp = results[ant][1]
-
-				-- Iterate through the vehicles for the current antenna
-				for k, v in pairs( vehs[ant] ) do
-					-- When we grab a vehicle for the fastest section, as it is like how the real system works, there are a few
-					-- additional checks that have to be made
-					if ( self:CheckVehicleDataFitsMode( ant, v.rayType ) and v.veh ~= temp.veh and v.size < temp.size and v.speed > temp.speed + 1.0 ) then
-						-- Set the result for the current antenna
-						results[ant][2] = v
-						break
-					end
 				end
 			end
 		end
 	end
 
 	-- Collect detected vehicles for debug
-	if results["front"][1] then table.insert(RADAR.detectedVehicles, results["front"][1].veh) end
-	if results["front"][2] then table.insert(RADAR.detectedVehicles, results["front"][2].veh) end
-	if results["rear"][1] then table.insert(RADAR.detectedVehicles, results["rear"][1].veh) end
-	if results["rear"][2] then table.insert(RADAR.detectedVehicles, results["rear"][2].veh) end
+	if results["front"][1] then 
+		table.insert(RADAR.detectedVehicles, results["front"][1].veh)
+		results["front"][2] = results["front"][1]  -- Duplicate for fast display
+	end
+	if results["rear"][1] then 
+		table.insert(RADAR.detectedVehicles, results["rear"][1].veh)
+		results["rear"][2] = results["rear"][1]  -- Duplicate for fast display
+	end
 
-	-- Return the results
+	-- Return the results (same vehicle shown in both target and fast slots)
 	return { ["front"] = { results["front"][1], results["front"][2] }, ["rear"] = { results["rear"][1], results["rear"][2] } }
 end
 -- Runs when the "Toggle Display" button is pressed on the remote control
@@ -1730,34 +1709,30 @@ function RADAR:Main()
 				-- Create a table for the current antenna to store the information
 				data.antennas[ant] = {}
 
-				-- When the system works out what vehicles to be used, both the "front" and "rear" keys have two items located
-				-- at index 1 and 2. Index 1 stores the vehicle data for the antenna's 'strongest' vehicle, and index 2 stores
-				-- the vehicle data for the 'fastest' vehicle. Here we iterate through both the indexes and just run checks to
-				-- see if it is a particular type (e.g. if i % 2 == 0 then it's the 'fastest' vehicle)
+				-- Now we only track the fastest vehicle per antenna (index 1), but display it in both target and fast slots
 				for i = 1, 2 do
 					-- Create the table to store the speed and direction for this vehicle data
 					data.antennas[ant][i] = { speed = "¦¦¦", dir = 0 }
 
-					-- If the current iteration is the number 2 ('fastest') and there's a speed locked, grab the locked speed
-					-- and direction
-					if ( i == 2 and self:IsAntennaSpeedLocked( ant ) ) then
+					-- If there's a speed locked, grab the locked speed and direction
+					if ( self:IsAntennaSpeedLocked( ant ) ) then
 						data.antennas[ant][i].speed = self:GetAntennaLockedSpeed( ant )
 						data.antennas[ant][i].dir = self:GetAntennaLockedDir( ant )
 
 					-- Otherwise, continue with getting speed and direction data
 					else
 						-- The vehicle data exists for this slot
-						if ( av[ant][i] ~= nil ) then
+						if ( av[ant][1] ~= nil ) then
 							-- Here we get the entity speed of the vehicle, the speed for this vehicle would've been obtained
 							-- and stored in the trace stage, but the speed would've only been obtained and stored once, which
 							-- means that it woulsn't be the current speed
-							local vehSpeed = GetEntitySpeed( av[ant][i].veh )
+							local vehSpeed = GetEntitySpeed( av[ant][1].veh )
 							local convertedSpeed = self:GetVehSpeedConverted( vehSpeed )
 							data.antennas[ant][i].speed = UTIL:FormatSpeed( convertedSpeed )
 
 							-- Work out if the vehicle is closing or away
 							local ownH = UTIL:Round( GetEntityHeading( PLY.veh ), 0 )
-							local tarH = UTIL:Round( GetEntityHeading( av[ant][i].veh ), 0 )
+							local tarH = UTIL:Round( GetEntityHeading( av[ant][1].veh ), 0 )
 							data.antennas[ant][i].dir = UTIL:GetEntityRelativeDirection( ownH, tarH )
 
 							-- Set the internal antenna data as this actual dataset is valid
@@ -1771,7 +1746,7 @@ function RADAR:Main()
 							if ( self:IsFastLimitAllowed() ) then
 								-- Make sure the speed is larger than the limit, and that there isn't already a locked speed
 								if ( self:IsFastLockEnabled() and convertedSpeed > self:GetFastLimit() and not self:IsAntennaSpeedLocked( ant ) ) then
-									if ( ( self:OnlyLockFastPlayers() and UTIL:IsPlayerInVeh( av[ant][i].veh ) ) or not self:OnlyLockFastPlayers() ) then
+									if ( ( self:OnlyLockFastPlayers() and UTIL:IsPlayerInVeh( av[ant][1].veh ) ) or not self:OnlyLockFastPlayers() ) then
 										if ( PLY:IsDriver() ) then
 											self:LockAntennaSpeed( ant, nil, false )
 											SYNC:LockAntennaSpeed( ant, RADAR:GetAntennaDataPacket( ant ) )
