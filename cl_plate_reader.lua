@@ -68,6 +68,10 @@ READER.vars =
 	}
 }
 
+-- X-axis offsets used for scanning vehicles at different horizontal positions
+-- This allows the plate reader to detect vehicles to the left and right when the patrol vehicle is turned
+READER.scanOffsets = { 0.0, -5.0, 5.0 }
+
 
 --[[----------------------------------------------------------------------------------
 	Plate reader functions
@@ -244,10 +248,9 @@ function READER:Main()
 			
 			-- Scan multiple positions to widen the scan range when the vehicle is turned
 			-- This helps catch plates to the left and right of the patrol vehicle
-			local xOffsets = { 0.0, -5.0, 5.0 }
 			local veh = nil
 			
-			for _, xOffset in ipairs( xOffsets ) do
+			for _, xOffset in ipairs( self.scanOffsets ) do
 				-- Get the end position 50m in front/behind the player's vehicle at various X offsets
 				local offset = GetOffsetFromEntityInWorldCoords( PLY.veh, xOffset, ( 50.0 * i ), 0.0 )
 
