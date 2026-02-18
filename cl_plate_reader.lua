@@ -65,12 +65,18 @@ READER.vars =
 			index = "",     -- The index of the current plate
 			locked = false  -- If the reader is locked
 		}
-	}
+	},
+
+	-- Debug mode for visualizing detected plates
+	debug = true,
+
+	-- Detected plates for debug
+	detectedPlates = {}
 }
 
 -- X-axis offsets used for scanning vehicles at different horizontal positions
 -- This allows the plate reader to detect vehicles to the left and right when the patrol vehicle is turned
-READER.scanOffsets = { 0.0, -5.0, 5.0 }
+READER.scanOffsets = { 0.0, -5.0, 5.0, -10.0, 10.0, -15.0, 15.0, -20.0, 20.0 }
 
 
 --[[----------------------------------------------------------------------------------
@@ -235,13 +241,16 @@ end )
 function READER:Main()
 	-- Check that the system can actually run
 	if ( PLY:VehicleStateValid() and self:CanPerformMainTask() ) then
+		-- Clear detected plates
+		READER.detectedPlates = {}
+
 		-- Loop through front (1) and rear (-1)
 		for i = 1, -1, -2 do
 			-- Get the world position of the player's vehicle
 			local pos = GetEntityCoords( PLY.veh )
 
 			-- Get a start position 5m in front/behind the player's vehicle
-			local start = GetOffsetFromEntityInWorldCoords( PLY.veh, 0.0, ( 5.0 * i ), 0.0 )
+			local start = GetOffsetFromEntityInWorldCoords( PLY.veh, 0.0, ( 5.0 * i ), 1.5 )
 
 			-- Get the plate reader text for front/rear
 			local cam = self:GetCamFromNum( i )
@@ -251,8 +260,8 @@ function READER:Main()
 			local veh = nil
 			
 			for _, xOffset in ipairs( self.scanOffsets ) do
-				-- Get the end position 50m in front/behind the player's vehicle at various X offsets
-				local offset = GetOffsetFromEntityInWorldCoords( PLY.veh, xOffset, ( 50.0 * i ), 0.0 )
+				-- Get the end position 600m in front/behind the player's vehicle at various X offsets
+				local offset = GetOffsetFromEntityInWorldCoords( PLY.veh, xOffset, ( 600.0 * i ), 1.5 )
 
 				-- Run the ray trace to get a vehicle
 				veh = UTIL:GetVehicleInDirection( PLY.veh, start, offset )
@@ -274,6 +283,9 @@ function READER:Main()
 
 				-- Only run the rest of the plate check code if we can see the front or rear of the vehicle
 				if ( dir > 0 ) then
+					-- Add to detected plates for debug
+					table.insert( READER.detectedPlates, veh )
+
 					-- Get the licence plate text from the vehicle
 					local plate = GetVehicleNumberPlateText( veh )
 
@@ -334,7 +346,27 @@ function READER:RunDisplayValidationCheck()
 		SendNUIMessage( { _type = "setReaderDisplayState", state = true } )
 	end
 end
+-- Plate reader debug command
+RegisterCommand( "plate_debug", function()
+	READER.debug = not READER.debug
+	UTIL:Notify( "Plate reader debug mode: " .. (READER.debug and "ON" or "OFF") )
+end, false )
 
+-- Plate reader debug drawing thread
+Citizen.CreateThread( function()
+	while ( true ) do
+		if ( READER.debug and PLY.veh ) then
+			local vehCoords = GetEntityCoords( PLY.veh )
+			for _, veh in ipairs( READER.detectedPlates ) do
+				if DoesEntityExist( veh ) then
+					local vehPos = GetEntityCoords( veh )
+					DrawLine( vehCoords.x, vehCoords.y, vehCoords.z, vehPos.x, vehPos.y, vehPos.z, 255, 0, 0, 255 )
+				end
+			end
+		end
+		Citizen.Wait( 0 )
+	end
+end )
 -- Runs the display validation check for the radar
 Citizen.CreateThread( function()
 	Citizen.Wait( 100 )
