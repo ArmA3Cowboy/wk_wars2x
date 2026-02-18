@@ -44,7 +44,7 @@ CONFIG.fast_limit_first_in_menu = false
 
 -- Radar only lock players with auto fast locking
 -- When enabled, the radar will only automatically lock a speed if the caught vehicle has a real player in it.
-CONFIG.only_lock_players = false
+CONFIG.only_lock_players = true
 
 -- In-game first time quick start video
 -- When enabled, the player will be asked if they'd like to view the quick start video the first time they
@@ -53,7 +53,7 @@ CONFIG.allow_quick_start_video = true
 
 -- Allow passenger view
 -- When enabled, the front seat passenger will be able to view the radar and plate reader from their end.
-CONFIG.allow_passenger_view = false
+CONFIG.allow_passenger_view = true
 
 -- Allow passenger control
 -- Dependent on CONFIG.allow_passenger_view. When enabled, the front seat passenger will be able to open the
@@ -96,8 +96,8 @@ CONFIG.menuDefaults =
 
 	-- Sensitivity for each radar mode, this changes how far the antennas will detect vehicles
 	-- Options: 0.2, 0.4, 0.6, 0.8, 1.0
-	["same"] = 0.6,
-	["opp"] = 0.6,
+	["same"] = 0.2,
+	["opp"] = 0.2,
 
 	-- The volume of the audible beep
 	-- Options: 0.0, 0.2, 0.4, 0.6, 0.8, 1.0
@@ -113,11 +113,11 @@ CONFIG.menuDefaults =
 
 	-- The speed unit used in conversions
 	-- Options: mph or kmh
-	["speedType"] = "mph",
+	["speedType"] = "kmh",
 
 	-- The state for automatic speed locking. This requires CONFIG.allow_fast_limit to be true.
 	-- Options: true or false
-	["fastLock"] = false,
+	["fastLock"] = true,
 
 	-- The speed limit required for automatic speed locking. This requires CONFIG.allow_fast_limit to be true.
 	-- Options: 0 to 200
