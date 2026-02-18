@@ -274,6 +274,9 @@ function READER:Main()
 
 			-- Only proceed to read a plate if the hit entity is a valid vehicle and the current camera isn't locked
 			if ( DoesEntityExist( veh ) and IsEntityAVehicle( veh ) and not self:GetCamLocked( cam ) ) then
+				-- Check line of sight
+				local visible = HasEntityClearLosToEntity( PLY.veh, veh, 15 )
+
 				-- Get the heading of the player's vehicle and the hit vehicle
 				local ownH = UTIL:Round( GetEntityHeading( PLY.veh ), 0 )
 				local tarH = UTIL:Round( GetEntityHeading( veh ), 0 )
@@ -281,8 +284,16 @@ function READER:Main()
 				-- Get the relative direction between the player's vehicle and the hit vehicle
 				local dir = UTIL:GetEntityRelativeDirection( ownH, tarH )
 
-				-- Only run the rest of the plate check code if we can see the front or rear of the vehicle
-				if ( dir > 0 ) then
+				-- Only run the rest of the plate check code if we have LOS
+				if ( visible ) then
+					-- Determine camera based on vehicle position
+					local plyPos = GetEntityCoords( PLY.veh )
+					local vehPos = GetEntityCoords( veh )
+					local relVec = vehPos - plyPos
+					local fwdVec = GetEntityForwardVector( PLY.veh )
+					local dotProd = relVec.x * fwdVec.x + relVec.y * fwdVec.y + relVec.z * fwdVec.z
+					local cam = dotProd > 0 and "front" or "rear"
+
 					-- Add to detected plates for debug
 					table.insert( READER.detectedPlates, veh )
 
