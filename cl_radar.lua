@@ -102,6 +102,10 @@ local function RegisterKeyBinds()
 		RegisterKeyMapping( "radar_key_lock", "Toggle Keybind Lock", "keyboard", CONFIG.keyDefaults.key_lock )
 
 		-- Deletes all of the KVPs
+		RegisterCommand( "radar_debug", function()
+			RADAR.debug = not RADAR.debug
+			UTIL:Notify( "Radar debug mode: " .. (RADAR.debug and "ON" or "OFF") )
+		end, false )
 		RegisterCommand( "reset_radar_data", function()
 			DeleteResourceKvp( "wk_wars2x_ui_data" )
 			DeleteResourceKvp( "wk_wars2x_om_data" )
@@ -234,7 +238,7 @@ RADAR.vars =
 
 	-- The maximum distance that the radar system's ray traces can go, changing this will change the max
 	-- distance in-game, but I wouldn't really put it more than 500.0
-	maxCheckDist = 350.0,
+	maxCheckDist = 100.0,
 
 	-- Cached dynamic vehicle sphere sizes, automatically populated when the system is running
 	sphereSizes = {},
@@ -264,7 +268,13 @@ RADAR.vars =
 	threadWaitTime = 500,
 
 	-- Key lock, when true, prevents any of the radar's key events from working, like the ELS key lock
-	keyLock = false
+	keyLock = false,
+
+	-- Debug mode for visualizing radar rays (always on)
+	debug = true,
+
+	-- Detected vehicles for debug
+	detectedVehicles = {}
 }
 
 -- Speed conversion values
@@ -275,8 +285,18 @@ RADAR.rayTraces = {
 	{ startVec = { x = 0.0 }, endVec = { x = 0.0, y = 0.0 }, rayType = "same" },
 	{ startVec = { x = -5.0 }, endVec = { x = -5.0, y = 0.0 }, rayType = "same" },
 	{ startVec = { x = 5.0 }, endVec = { x = 5.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = -10.0 }, endVec = { x = -10.0, y = 0.0 }, rayType = "opp" },
-	{ startVec = { x = -17.0 }, endVec = { x = -17.0, y = 0.0 }, rayType = "opp" }
+	{ startVec = { x = -10.0 }, endVec = { x = -10.0, y = 0.0 }, rayType = "same" },
+	{ startVec = { x = 10.0 }, endVec = { x = 10.0, y = 0.0 }, rayType = "same" },
+	{ startVec = { x = -15.0 }, endVec = { x = -15.0, y = 0.0 }, rayType = "same" },
+	{ startVec = { x = 15.0 }, endVec = { x = 15.0, y = 0.0 }, rayType = "same" },
+	{ startVec = { x = -20.0 }, endVec = { x = -20.0, y = 0.0 }, rayType = "same" },
+	{ startVec = { x = 20.0 }, endVec = { x = 20.0, y = 0.0 }, rayType = "same" },
+	{ startVec = { x = -17.0 }, endVec = { x = -17.0, y = 0.0 }, rayType = "opp" },
+	{ startVec = { x = -25.0 }, endVec = { x = -25.0, y = 0.0 }, rayType = "opp" },
+	{ startVec = { x = -30.0 }, endVec = { x = -30.0, y = 0.0 }, rayType = "opp" },
+	{ startVec = { x = 30.0 }, endVec = { x = 30.0, y = 0.0 }, rayType = "opp" },
+	{ startVec = { x = -40.0 }, endVec = { x = -40.0, y = 0.0 }, rayType = "opp" },
+	{ startVec = { x = 40.0 }, endVec = { x = 40.0, y = 0.0 }, rayType = "opp" }
 }
 
 -- Each of these are used for sorting the captured vehicle data, the 'strongest' filter is used for the main
@@ -830,9 +850,7 @@ function RADAR:IsVehicleInTraffic( tgtVeh, relPos )
 	-- Work out the heading difference, but also take into account extreme opposites (e.g. 5deg and 350deg)
 	local hdgDiff = math.abs( ( plyHdg - tgtHdg + 180 ) % 360 - 180 )
 
-	if ( relPos == 1 and hdgDiff > 45 and hdgDiff < 135 ) then
-		return false
-	elseif ( relPos == -1 and hdgDiff > 45 and ( hdgDiff < 135 or hdgDiff > 215 ) ) then
+	if ( relPos == -1 and hdgDiff > 45 and ( hdgDiff < 135 or hdgDiff > 215 ) ) then
 		return false
 	end
 
@@ -865,7 +883,7 @@ function RADAR:ShootCustomRay( plyVeh, veh, s, e )
 		local pitch = GetEntityPitch( plyVeh )
 
 		-- Now we check that the target vehicle is moving and is visible
-		if ( entSpeed > 0.1 and ( pitch > -35 and pitch < 35 ) and visible ) then
+		if ( entSpeed > 0.1 and visible ) then
 			-- Get the dynamic radius as well as the size of the target vehicle
 			local radius, size = self:GetDynamicRadius( veh )
 
@@ -924,8 +942,8 @@ end
 -- internal captured vehicles table.
 function RADAR:CreateRayThread( vehs, from, startX, endX, endY, rayType )
 	-- Get the start and end points for the ray trace based on the given start and end coordinates
-	local startPoint = GetOffsetFromEntityInWorldCoords( from, startX, 0.0, 0.0 )
-	local endPoint = GetOffsetFromEntityInWorldCoords( from, endX, endY, 0.0 )
+	local startPoint = GetOffsetFromEntityInWorldCoords( from, startX, 0.0, 1.5 )
+	local endPoint = GetOffsetFromEntityInWorldCoords( from, endX, endY, 1.5 )
 
 	-- Get all of the vehicles hit by the ray
 	local hitVehs = self:GetVehsHitByRay( from, vehs, startPoint, endPoint )
@@ -1299,8 +1317,7 @@ function RADAR:GetDynamicRadius( veh )
 		local numericSize = size.x + size.y + size.z
 
 		-- Get a dynamic radius for the given vehicle model that fits into the world of GTA
-		local dynamicRadius = UTIL:Clamp( ( numericSize * numericSize ) / 12, 5.0, 11.0 )
-
+	local dynamicRadius = UTIL:Clamp( ( numericSize * numericSize ) / 6, 10.0, 30.0 )
 		-- Insert the newly created sphere data into the sphere data table
 		self:InsertDynamicRadiusData( key, dynamicRadius, numericSize )
 
@@ -1410,6 +1427,21 @@ function RADAR:GetVehiclesForAntenna()
 				-- Convert the relative position to antenna text
 				local antText = self:GetAntennaTextFromNum( v.relPos )
 
+				if not antText and v.relPos == 0 then
+					-- Determine front or rear based on position
+					local plyPos = GetEntityCoords( PLY.veh )
+					local tgtPos = GetEntityCoords( v.veh )
+					local relVec = tgtPos - plyPos
+					local fwdVec = GetEntityForwardVector( PLY.veh )
+					local dotProd = relVec.x * fwdVec.x + relVec.y * fwdVec.y + relVec.z * fwdVec.z
+
+					if dotProd > 0 then
+						antText = "front"
+					else
+						antText = "rear"
+					end
+				end
+
 				-- Check the current vehicle's relative position is the same as the current antenna
 				if ( ant == antText ) then
 					-- Insert the vehicle into the table for the current antenna
@@ -1462,14 +1494,15 @@ function RADAR:GetVehiclesForAntenna()
 		end
 	end
 
+	-- Collect detected vehicles for debug
+	if results["front"][1] then table.insert(RADAR.detectedVehicles, results["front"][1].veh) end
+	if results["front"][2] then table.insert(RADAR.detectedVehicles, results["front"][2].veh) end
+	if results["rear"][1] then table.insert(RADAR.detectedVehicles, results["rear"][1].veh) end
+	if results["rear"][2] then table.insert(RADAR.detectedVehicles, results["rear"][2].veh) end
+
 	-- Return the results
 	return { ["front"] = { results["front"][1], results["front"][2] }, ["rear"] = { results["rear"][1], results["rear"][2] } }
 end
-
-
---[[----------------------------------------------------------------------------------
-	NUI callback
-----------------------------------------------------------------------------------]]--
 -- Runs when the "Toggle Display" button is pressed on the remote control
 RegisterNUICallback( "toggleRadarDisplay", function( data, cb )
 	-- Toggle the display state
@@ -1632,6 +1665,9 @@ function RADAR:RunThreads()
 	-- For the system to even run, the player needs to be sat in the driver's seat of a class 18 vehicle, the
 	-- radar has to be visible and the power must be on, and either one of the antennas must be enabled.
 	if ( PLY:CanViewRadar() and self:CanPerformMainTask() and self:IsEitherAntennaOn() ) then
+		-- Clear detected vehicles
+		RADAR.detectedVehicles = {}
+
 		-- Before we create any of the custom ray trace threads, we need to make sure that the ray trace state
 		-- is at zero, if it is not at zero, then it means the system is still currently tracing
 		if ( self:GetRayTraceState() == 0 ) then
@@ -1854,7 +1890,23 @@ Citizen.CreateThread( function()
 		-- Update the vehicle pool
 		RADAR:UpdateVehiclePool()
 
-		-- Wait 3 seconds
-		Citizen.Wait( 3000 )
+		-- Wait 0.5 seconds
+		Citizen.Wait( 500 )
+	end
+end )
+
+-- Debug drawing thread
+Citizen.CreateThread( function()
+	while ( true ) do
+		if ( RADAR.debug and PLY.veh ) then
+			local vehCoords = GetEntityCoords( PLY.veh )
+			for _, veh in ipairs( RADAR.detectedVehicles ) do
+				if DoesEntityExist( veh ) then
+					local vehPos = GetEntityCoords( veh )
+					DrawLine( vehCoords.x, vehCoords.y, vehCoords.z, vehPos.x, vehPos.y, vehPos.z, 0, 255, 0, 255 )
+				end
+			end
+		end
+		Citizen.Wait( 0 )
 	end
 end )
