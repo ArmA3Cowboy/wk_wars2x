@@ -137,4 +137,5 @@ Open an issue if you encounter any problems with the resource, if applicable, tr
 
 
 ## DEBUG
-Use /radar_debug in-game T chat to show what is being scanned!
+Use /radar_debug in-game T chat to show a GREEN line of what is being scanned for speed!
+Use /plate_debug in-game T chat to show a RED line of what is being scanned for plates!
