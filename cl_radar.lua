@@ -238,7 +238,7 @@ RADAR.vars =
 
 	-- The maximum distance that the radar system's ray traces can go, changing this will change the max
 	-- distance in-game, but I wouldn't really put it more than 500.0
-	maxCheckDist = 100.0,
+	maxCheckDist = 150.0,
 
 	-- Cached dynamic vehicle sphere sizes, automatically populated when the system is running
 	sphereSizes = {},
@@ -285,18 +285,8 @@ RADAR.rayTraces = {
 	{ startVec = { x = 0.0 }, endVec = { x = 0.0, y = 0.0 }, rayType = "same" },
 	{ startVec = { x = -5.0 }, endVec = { x = -5.0, y = 0.0 }, rayType = "same" },
 	{ startVec = { x = 5.0 }, endVec = { x = 5.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = -10.0 }, endVec = { x = -10.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = 10.0 }, endVec = { x = 10.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = -15.0 }, endVec = { x = -15.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = 15.0 }, endVec = { x = 15.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = -20.0 }, endVec = { x = -20.0, y = 0.0 }, rayType = "same" },
-	{ startVec = { x = 20.0 }, endVec = { x = 20.0, y = 0.0 }, rayType = "same" },
 	{ startVec = { x = -17.0 }, endVec = { x = -17.0, y = 0.0 }, rayType = "opp" },
-	{ startVec = { x = -25.0 }, endVec = { x = -25.0, y = 0.0 }, rayType = "opp" },
-	{ startVec = { x = -30.0 }, endVec = { x = -30.0, y = 0.0 }, rayType = "opp" },
-	{ startVec = { x = 30.0 }, endVec = { x = 30.0, y = 0.0 }, rayType = "opp" },
-	{ startVec = { x = -40.0 }, endVec = { x = -40.0, y = 0.0 }, rayType = "opp" },
-	{ startVec = { x = 40.0 }, endVec = { x = 40.0, y = 0.0 }, rayType = "opp" }
+	{ startVec = { x = -25.0 }, endVec = { x = -25.0, y = 0.0 }, rayType = "opp" }
 }
 
 -- Each of these are used for sorting the captured vehicle data, the 'strongest' filter is used for the main
