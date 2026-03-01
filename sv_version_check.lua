@@ -40,6 +40,7 @@ local label =
   ||         \_/\_/|_| \__,_|_|\__|_||_| /_/ \_\_|_\|___/ /___/_/\_\
   || 
   ||                        Created by WolfKnight
+  ||                        Edited by ArmA3Cowboy
   ||]]
 
 -- Returns the current version set in fxmanifest.lua
